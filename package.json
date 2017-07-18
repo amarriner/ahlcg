@@ -1,0 +1,11 @@
+{
+  "name": "ahlcg",
+  "version": "1.0.0",
+  "description": "Arkham Horror LCG - ArkhamDB API Interface",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Aaron Marriner <marrinea@strose.edu>",
+  "license": "ISC"
+}
