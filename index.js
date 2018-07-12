@@ -1,102 +1,196 @@
+
+var archiver = require('archiver');
 var await = require('await');
-var download = require('image-downloader');
 var fs = require('fs');
 var log = require('log4js').getLogger();
-var request = require('request');
+var utils = require('./utils');
+var xmlParser = require('fast-xml-parser');
 
 log.level = 'debug';
+var gameDir = "C:/Users/marrinea/Documents/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf"
+var setDir = gameDir + "/Sets"
 
-var set = {
-    name: 'Where Doom Awaits',
-    code: 'wda',
-    octgnId: '00351560-5d00-35f9-991c-cee41e081de5'
-};
+fs.readdirSync(setDir).forEach(function(set) {
+   
+    //
+    // Uncomment below, and comment out the loop to run a single set
+    //
+    // var set = "dfa9b3bf-58f2-4611-ae55-e25562726d62";
 
-var imageDir = 'images/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets/' + set.octgnId + '/Cards/';
+    //
+    // Make sure the set directories are created
+    //
+    imageDir = 'images/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets/' + set;
+    if (!fs.existsSync(imageDir)) {
+        fs.mkdirSync(imageDir);
+    }
 
-var apiUrl = 'https://arkhamdb.com/api/public/cards/' + set.code + '.json';
+    imageDir += "/Cards/";
+    if (!fs.existsSync(imageDir)) {
+        fs.mkdirSync(imageDir);
+    }
 
-if (!fs.existsSync(imageDir)) {
-    fs.mkdirSync(imageDir.replace('Cards/', ''));
-    fs.mkdirSync(imageDir);
-}
+    //
+    // Read in the set.xml file for the given set
+    //
+    var xml = fs.readFileSync(setDir + "/"+ set + "/set.xml", "utf-8");
 
-var getCards = function() {
+    var options = {
+        attributeNamePrefix : "",
+        attrNodeName: "attr",
+        textNodeName : "#text",
+        ignoreAttributes : false,
+        ignoreNameSpace : false,
+        allowBooleanAttributes : false,
+        parseNodeValue : true,
+        parseAttributeValue : true,
+        trimValues: true,
+        cdataTagName: "__cdata",
+        cdataPositionChar: "\\c",
+        localeRange: ""
+    };
 
-    var promise = await('cards');
-    log.info('Retrieving cards...');
+    //
+    // Parse the XML into JSON
+    //
+    var json = xmlParser.parse(xml, options);
 
-    request.get({
-        url: apiUrl
-    }, function (error, response, body) {
+    //
+    // Make sure the set is in the ArkhamDB data as otherwise we can't get 
+    // cards for it (like for Markers and Tokens, for example)
+    //
+    if (!utils.findSetByName(json.set.attr.name)) {
+        log.warn("No such set " + json.set.attr.name + " in ArkhamDB data");
+        return;
+    }
 
-        if (error || ! response.statusCode === 200) {
-            log.error('Error retrieving cards!');
-            promise.fail(response.statusCode + ' :: ' + response.body);
-            return;
+    //
+    // Only download cards if the zip file doesn't already exist from a previous run
+    //
+    if(fs.existsSync("./images/" + json.set.attr.name + ".zip")) {
+        log.warn("Set " + json.set.attr.name + " already downloaded, skipping");
+        return;
+    }
+
+    //
+    // Loop through the cards in the set
+    //
+    log.info("-----------------------------------------------------------------");
+    log.info("Processing set " + json.set.attr.name + " (" + json.set.attr.id + ")");
+    log.info("-----------------------------------------------------------------");
+    var promise = await("loop");
+    for (var i in json.set.cards.card) {
+
+        var errorCount = 0;
+        var downloadCount = 0;
+        var card = json.set.cards.card[i];
+
+        //
+        // String out HTML encoded stuff (may be missing some things here and there's
+        // likely a native function that can accomplish this better)
+        //
+        var name = card.attr.name.replace(/&quot;/g, "\"");
+
+        //
+        // Attempt to look up the card from the ArkhamDB JSON by name
+        //
+        var arkhamDbCard = utils.findCardByName(name);
+
+        if (!arkhamDbCard) {            
+            if (card.alternate.attr.name) {
+                arkhamDbCard = utils.findCardByName(card.alternate.attr.name.replace(/&quot;/g, "\""));
+            }
         }
 
-        log.info('Retrieved cards...');
-        promise.keep('cards', response.body);
-
-    });
-
-    return promise;
-
-};
-
-// ----------------------------------------------------------------------------
-
-log.info('START');
-
-getCards()
-    .then(function(got) {
-
-        var json = JSON.parse(got.cards);
-        // log.info(JSON.stringify(json));
-
-        for (var i = 0; i < json.length; i++) {
-
-            var downloaded = false;
-            log.info(json[i]['name'] + ' :: ' + json[i]['imagesrc'] + ' :: ' + json[i]['octgn_id']);
-
-            if (json[i]['imagesrc']) {
-                download.image({
-                    url: 'https://arkhamdb.com/' + json[i]['imagesrc'],
-                    dest: imageDir + json[i]['octgn_id'] + '.jpg'
-                }).then(function(filename, image) {
-                    //log.debug('Downloaded ' + JSON.stringify(filename));
-                }).catch(function(error) {
-                    log.error('Error downloading (' + error + ')');
-                });
-
-                downloaded = true;
-            }
-
-            if (json[i]['backimagesrc']) {
-                download.image({
-                    url: 'https://arkhamdb.com/' + json[i]['backimagesrc'],
-                    dest: imageDir + json[i]['octgn_id'] + '.B.jpg'
-                }).then(function(filename, image) {
-                    //
-                }).catch(function(error) {
-                    log.error('Error downloading (' + error + ')');
-                });
-
-                downloaded = true;
-            }
-
-            if (!downloaded) {
-                log.warn('Did not attempt download: ' + json[i]['name'] + ' :: ' + json[i]['code'] + ' :: ' + json[i]['octgn_id']);
-            }
+        if (!arkhamDbCard) {
+            log.error("Could not find card: " + name + " (" + card.attr.id + ")");
+            errorCount++;
         }
+        else {
 
-        log.info('DONE');
+            log.info("Found card " + name + " (" + card.attr.id + ") :: (" + arkhamDbCard.url + "), downloading...");
+            
+            //
+            // If the card is a location, flip the imagesrc and backimagesrc attributes
+            //
+            if (arkhamDbCard.type_code === "location" && arkhamDbCard.backimagesrc) {
+                var t = arkhamDbCard.backimagesrc;
+                arkhamDbCard.backimagesrc = arkhamDbCard.imagesrc;
+                arkhamDbCard.imagesrc = t;
+            }
 
-    })
-    .catch(function(error) {
+            //
+            // Found the card, attempt to download it
+            //
+            if (arkhamDbCard.imagesrc) {
+                utils.downloadCardImage(
+                    'https://arkhamdb.com/' + arkhamDbCard.imagesrc,
+                    imageDir + card.attr.id + '.jpg'
+                ).then(function(got) {
 
-        log.error(error);
+                    downloadCount++;
+
+                    if (downloadCount + errorCount >= json.set.cards.card.length) {
+                        promise.keep("loop", {
+                            "set": json.set.attr.name,
+                            "directory": imageDir
+                        });
+                    }
+
+                }).catch(function(error) {
+
+                    log.error("Error downloading " + name);
+                    log.error(error);
+                    errorCount++
+
+                });
+            }
+
+            //
+            // This card also has a back image so download that, too
+            //
+            if (arkhamDbCard.backimagesrc) {
+                utils.downloadCardImage(
+                    'https://arkhamdb.com/' + arkhamDbCard.backimagesrc,
+                    imageDir + card.attr.id + '.B.jpg'
+                ).then(function(got) {
+
+                    downloadCount++;                
+
+                    if (downloadCount + errorCount >= json.set.cards.card.length) {
+                        promise.keep("loop", {
+                            "set": json.set.attr.name,
+                            "directory": imageDir
+                        });
+                    }
+
+                }).catch(function(error) {
+
+                    log.error("Error downloading " + name);
+                    log.error(error);
+                    errorCount++
+
+                });
+            }
+
+        }
+    }
+
+    promise.then(function(got) {
+
+        log.info("Finished downloading " + got.loop.set + ", zipping images");
+
+        var output = fs.createWriteStream("images/" + got.loop.set + ".zip");
+        var archive = archiver("zip", {
+            zlib: { level: 1 }
+        });
+
+        archive.pipe(output);
+        archive.directory(got.loop.directory, got.loop.directory.replace(/^images\//, ""));
+        archive.finalize();
+
+        log.info("Zip file images/" + got.loop.set + ".zip created");
 
     });
-
+    
+});
