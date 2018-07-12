@@ -1,2 +1,4 @@
 node_modules
 images
+out.txt
+json/*.json
