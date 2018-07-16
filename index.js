@@ -10,6 +10,8 @@ log.level = 'debug';
 var gameDir = "C:/Users/marrinea/Documents/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf"
 var setDir = gameDir + "/Sets"
 
+var octgnJson = {};
+
 fs.readdirSync(setDir).forEach(function(set) {
    
     //
@@ -65,6 +67,11 @@ fs.readdirSync(setDir).forEach(function(set) {
     }
 
     //
+    // Save OCTGN ID for later output in a JSON file
+    //
+    octgnJson[json.set.attr.name] = json.set.attr.id;
+
+    //
     // Only download cards if the zip file doesn't already exist from a previous run
     //
     if(fs.existsSync("./images/" + json.set.attr.name + ".zip")) {
@@ -78,6 +85,7 @@ fs.readdirSync(setDir).forEach(function(set) {
     log.info("-----------------------------------------------------------------");
     log.info("Processing set " + json.set.attr.name + " (" + json.set.attr.id + ")");
     log.info("-----------------------------------------------------------------");
+
     var promise = await("loop");
     for (var i in json.set.cards.card) {
 
@@ -94,13 +102,7 @@ fs.readdirSync(setDir).forEach(function(set) {
         //
         // Attempt to look up the card from the ArkhamDB JSON by name
         //
-        var arkhamDbCard = utils.findCardByName(name);
-
-        if (!arkhamDbCard) {            
-            if (card.alternate.attr.name) {
-                arkhamDbCard = utils.findCardByName(card.alternate.attr.name.replace(/&quot;/g, "\""));
-            }
-        }
+        var arkhamDbCard = utils.findCardByNumberAndSetName(utils.getCardNumber(card), json.set.attr.name);
 
         if (!arkhamDbCard) {
             log.error("Could not find card: " + name + " (" + card.attr.id + ")");
@@ -194,3 +196,8 @@ fs.readdirSync(setDir).forEach(function(set) {
     });
     
 });
+
+//
+// Write octgnJson to file
+//
+fs.writeFileSync("./json/octgn.json", JSON.stringify(octgnJson, null, 4));

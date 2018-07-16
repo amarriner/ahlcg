@@ -21,6 +21,20 @@ var downloadCardImage = function(url, destination) {
     return promise;
 }
 
+var getCardNumber = function(card) {
+
+    for(var p in card.property) {
+
+        if (card.property[p].attr.name === "Card Number") {
+            return card.property[p].attr.value;
+        }
+
+    }
+
+    return;
+
+}
+
 var findCardByName = function(cardName) {
 
     for(var i in arkhamDbCards) {
@@ -36,6 +50,18 @@ var findCardByName = function(cardName) {
     }
 
     return;
+
+};
+
+var findCardByNumberAndSetName = function(cardNumber, setName) {
+
+    for (var i in arkhamDbCards) {
+
+        if (arkhamDbCards[i].position == cardNumber && arkhamDbCards[i]["pack_name"] === setName) {
+            return arkhamDbCards[i];
+        }
+
+    }
 
 };
 
@@ -885,7 +911,9 @@ String.prototype.isLatin=function(){return this==this.latinise()};
 
 module.exports = {
     downloadCardImage: downloadCardImage,
+    getCardNumber: getCardNumber,
     findCardByName: findCardByName,
+    findCardByNumberAndSetName: findCardByNumberAndSetName,
     findSetByName: findSetByName
 };
 
