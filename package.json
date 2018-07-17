@@ -4,10 +4,7 @@
   "description": "Arkham Horror LCG - ArkhamDB API Interface",
   "main": "index.js",
   "scripts": {
-<<<<<<< HEAD
     "run": "node index.js",
-=======
->>>>>>> 6118c7934ca30bf325b14e64d2512c8b29e46876
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Aaron Marriner <marrinea@strose.edu>",
