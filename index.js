@@ -3,12 +3,28 @@ var archiver = require('archiver');
 var await = require('await');
 var fs = require('fs');
 var log = require('log4js').getLogger();
+var path = require('path');
 var utils = require('./utils');
 var xmlParser = require('fast-xml-parser');
 
 log.level = 'debug';
-var gameDir = "C:/Users/marrinea/Documents/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf"
+
+//
+// Find OCTGN Directory if possible
+//
+var userName = process.env['USERPROFILE'].split(path.sep)[2];
+var gameDir = "C:/Users/" + userName + "/Documents/OCTGN/GameDatabase/a6d114c7-2e2a-4896-ad8c-0330605c90bf"
+if (!fs.existsSync(gameDir)) {
+    log.error("Couldn't find OCTGN install directory, you'll have to set the 'gameDir' variable manually");
+    return;
+}
+
 var setDir = gameDir + "/Sets"
+
+//
+// Create the images directory if necessary
+//
+utils.mkdir("./images/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets");
 
 var octgnJson = {};
 
@@ -22,15 +38,8 @@ fs.readdirSync(setDir).forEach(function(set) {
     //
     // Make sure the set directories are created
     //
-    imageDir = 'images/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets/' + set;
-    if (!fs.existsSync(imageDir)) {
-        fs.mkdirSync(imageDir);
-    }
-
-    imageDir += "/Cards/";
-    if (!fs.existsSync(imageDir)) {
-        fs.mkdirSync(imageDir);
-    }
+    imageDir = 'images/a6d114c7-2e2a-4896-ad8c-0330605c90bf/Sets/' + set + "/Cards/";
+    utils.mkdir(imageDir);
 
     //
     // Read in the set.xml file for the given set

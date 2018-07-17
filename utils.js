@@ -1,6 +1,8 @@
 
 var await = require('await');
 var download = require('image-downloader');
+var fs = require('fs');
+
 var arkhamDbCards = require("./json/arkham-cards.json");
 var arkhamDbSets = require("./json/arkham-packs.json");
 
@@ -57,7 +59,9 @@ var findCardByNumberAndSetName = function(cardNumber, setName) {
 
     for (var i in arkhamDbCards) {
 
-        if (arkhamDbCards[i].position == cardNumber && arkhamDbCards[i]["pack_name"] === setName) {
+        if (arkhamDbCards[i].position == cardNumber && 
+            arkhamDbCards[i]["pack_name"].replace(/^The /, "").replace(/[ \.\-\"\']/g, "").toUpperCase().latinize() === 
+            setName.replace(/^The /, "").replace(/[ \.\-\"\']/g, "").toUpperCase().latinize()) {
             return arkhamDbCards[i];
         }
 
@@ -75,7 +79,32 @@ var findSetByName = function(setName) {
 
     }
 
-}
+};
+
+var mkdir = function(path) {
+
+    var full = "";
+
+    for (var i in path.split("/")) {
+
+        var dir = path.split("/")[i];
+
+        if (dir) {
+
+            if (full) {
+                full += "/";
+            }
+
+            full += dir;
+
+            if (!fs.existsSync(full)) {
+                fs.mkdirSync(full);
+            }
+            
+        }
+
+    }
+};
 
 //
 // https://stackoverflow.com/questions/18123501/replacing-accented-characters-with-plain-ascii-ones
@@ -914,6 +943,7 @@ module.exports = {
     getCardNumber: getCardNumber,
     findCardByName: findCardByName,
     findCardByNumberAndSetName: findCardByNumberAndSetName,
-    findSetByName: findSetByName
+    findSetByName: findSetByName,
+    mkdir: mkdir
 };
 
