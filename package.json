@@ -11,9 +11,10 @@
   "dependencies": {
     "archiver": "^2.1.1",
     "await": "^0.2.6",
-    "fast-xml-parser": "^3.11.1",
+    "glob": "^7.1.2",
     "image-downloader": "^3.2.2",
     "log4js": "^2.2.0",
-    "sync-request": "^6.0.0"
+    "sync-request": "^6.0.0",
+    "xml-js": "^1.6.7"
   }
 }

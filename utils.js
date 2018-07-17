@@ -25,10 +25,10 @@ var downloadCardImage = function(url, destination) {
 
 var getCardNumber = function(card) {
 
-    for(var p in card.property) {
+    for(var e in card.elements) {
 
-        if (card.property[p].attr.name === "Card Number") {
-            return card.property[p].attr.value;
+        if (card.elements[e].attributes.name === "Card Number") {
+            return card.elements[e].attributes.value;
         }
 
     }
